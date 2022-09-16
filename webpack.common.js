@@ -19,7 +19,6 @@ module.exports = {
         fallback: {
             fs: false,
             path: false, // require.resolve("path-browserify")
-            util: require.resolve("util/"),
         },
     },
     module: {
@@ -56,10 +55,6 @@ module.exports = {
         new HtmlWebpackPlugin({
             inject: true,
             template: path.resolve(appDirectory, "public/index.html"),
-        }),
-        new webpack.ProvidePlugin({
-            process: "process/browser",
-            Buffer: ["buffer", "Buffer"],
         }),
     ],
 };

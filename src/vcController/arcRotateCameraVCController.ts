@@ -1,58 +1,74 @@
 import { ArcRotateCamera } from "@babylonjs/core";
 import { Nullable } from "@babylonjs/core/types";
-import * as SpeechCommands from "@tensorflow-models/speech-commands";
-import "@tensorflow/tfjs-backend-webgl";
+import { ResultReason } from 'microsoft-cognitiveservices-speech-sdk';
 
-// model: https://teachablemachine.withgoogle.com/models/qhl7u7lRL/
-import * as checkpointUrl from "./model/model.json";
-import * as metadataUrl from "./model/metadata.json";
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const speechsdk = require('microsoft-cognitiveservices-speech-sdk');
+
+import {modelKey} from "./model/modelKey";
+
+enum CommandList {
+    ZOOM,
+    UNRECOGNIZED_COMMAND
+}
 
 /**
  * This class utilizes voice recognition commands to manipulate an Babylon ArcRotateCamera
  */
 export class ArcRotateCameraVCController {
     private _camera: Nullable<ArcRotateCamera> = null;
-    private _recognizer: Nullable<SpeechCommands.SpeechCommandRecognizer> = null; 
+    private _config: any;
+    private _zoomStep = 1; 
     
     constructor(camera: ArcRotateCamera) {
         this._camera = camera;
     }
 
-    public async createModel() {
-        const recognizer = SpeechCommands.create(
-            "BROWSER_FFT", // fourier transform type, not useful to change
-            undefined, // speech commands vocabulary feature, not useful for your models
-            checkpointUrl,
-            metadataUrl);
+    private _getMainCommand(text: string) {
+        if (text.startsWith("zoom")) {
+            return CommandList.ZOOM;
+        }
+        return CommandList.UNRECOGNIZED_COMMAND;
+    }
 
-        // check that model and metadata are loaded via HTTPS requests.
-        recognizer.ensureModelLoaded();
+    private _parseCommands(text: string) {
+        // Zoom case
+        if (text.startsWith("zoom")) {
+            if (text.includes("out")) {
+                console.log('zoom out');
+                this._camera!.radius += this._zoomStep;
+            } else {
+                console.log('zoom in');
+                this._camera!.radius -= this._zoomStep;
+            }
+        }
+    }
 
-        this._recognizer = recognizer;
+    public createModel() {
+        const speechConfig = speechsdk.SpeechConfig.fromSubscription(modelKey, "eastus");
+        speechConfig.speechRecognitionLanguage = 'en-US';
+
+        this._config = speechConfig;
     }
 
     public listen() {
-        if (!this._recognizer) {
+        if (!this._config) {
             console.warn("Recognizer not ready yet!");
             return;
         }
+        const audioConfig = speechsdk.AudioConfig.fromDefaultMicrophoneInput();
+        const recognizer = new speechsdk.SpeechRecognizer(this._config, audioConfig);
 
-        const classLabels = this._recognizer.wordLabels();
-        this._recognizer.listen(async result => {
-            const scores = result.scores; // probability of prediction for each class
-            console.log('scores', scores);
-            // render the probability scores per class
-            for (let i = 0; i < classLabels.length; i++) {
-                const classPrediction = classLabels[i] + ": " + result.scores[i];
-                console.log('classPrediction', classPrediction);
+        recognizer.recognizeOnceAsync((result: any) => {
+            let displayText;
+            if (result.reason === ResultReason.RecognizedSpeech) {
+                displayText = `RECOGNIZED: Text=${result.text}`
+                // Parse text
+                this._parseCommands(result.text.toLowerCase());
+            } else {
+                displayText = 'ERROR: Speech was cancelled or could not be recognized. Ensure your microphone is working properly.';
             }
-        }, {
-            includeSpectrogram: false, // in case listen should return result.spectrogram
-            probabilityThreshold: 0.75,
-            invokeCallbackOnNoiseAndUnknown: true,
-            overlapFactor: 0.50 // probably want between 0.5 and 0.75. More info in README
-        }).then(() => {
-            console.log("Start recognition");
+            console.log(displayText);
         });
     }
 }

@@ -5,17 +5,13 @@
     "main": "index.ts",
     "dependencies": {
         "@babylonjs/core": "^5.3.0",
+        "@babylonjs/gui": "^5.24.0",
         "@babylonjs/gui-editor": "^5.5.0",
         "@babylonjs/inspector": "^5.3.0",
         "@babylonjs/loaders": "^5.3.0",
         "@babylonjs/materials": "^5.3.0",
-        "@tensorflow-models/speech-commands": "^0.5.4",
-        "@tensorflow/tfjs": "^3.20.0",
-        "@tensorflow/tfjs-backend-webgl": "^3.20.0",
         "ammo.js": "github:kripken/ammo.js",
-        "buffer": "^6.0.3",
-        "process": "^0.11.10",
-        "util": "^0.12.4"
+        "microsoft-cognitiveservices-speech-sdk": "^1.23.0"
     },
     "devDependencies": {
         "@typescript-eslint/eslint-plugin": "^5.12.0",

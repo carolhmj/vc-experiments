@@ -18,6 +18,7 @@ import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator"
 import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
 
 import { ArcRotateCameraVCController } from "../vcController/arcRotateCameraVCController";
+import { KeyboardInfo } from "@babylonjs/core";
 
 export class DefaultSceneWithTexture implements CreateSceneClass {
     createScene = async (
@@ -106,9 +107,16 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
 
         const controller = new ArcRotateCameraVCController(camera);
 
-        controller.createModel().then(() => {
-            controller.listen();
-        })
+        controller.createModel();
+
+        scene.onKeyboardObservable.add((keyInfo: KeyboardInfo) => {
+            // Start listening on enter
+            if (keyInfo.event.key === "Enter") {
+                console.log('start listening');
+                controller.listen();
+            }
+        });
+    
 
         return scene;
     };
