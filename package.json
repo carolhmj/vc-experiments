@@ -1,7 +1,7 @@
 {
     "name": "vc-experiments",
     "version": "0.0.1",
-    "description": "A simple scene using Babylon.js, typescript and webpack. What could go wrong?",
+    "description": "VC controls for Babylon.js",
     "main": "index.ts",
     "dependencies": {
         "@babylonjs/core": "^5.3.0",
@@ -34,26 +34,5 @@
         "build:dev": "npx webpack --config webpack.dev.js",
         "build": "npx webpack --config webpack.prod.js",
         "lint": "npx eslint . --ext .ts,.tsx"
-    },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/RaananW/babylonjs-webpack-es6.git"
-    },
-    "keywords": [
-        "Babylon.js",
-        "webpack",
-        "getting started",
-        "typescript",
-        "es6"
-    ],
-    "author": {
-        "name": "Raanan Weber",
-        "email": "info@raananweber.com",
-        "url": "http://blog.raananweber.com/"
-    },
-    "license": "Apache-2.0",
-    "bugs": {
-        "url": "https://github.com/RaananW/babylonjs-webpack-es6/issues"
-    },
-    "homepage": "https://github.com/RaananW/babylonjs-webpack-es6"
+    }
 }
