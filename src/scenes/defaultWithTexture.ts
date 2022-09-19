@@ -108,12 +108,27 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         const controller = new ArcRotateCameraVCController(camera);
 
         controller.createModel();
-
+        
+        let listening = false;
         scene.onKeyboardObservable.add((keyInfo: KeyboardInfo) => {
             // Start listening on enter
-            if (keyInfo.event.key === "Enter") {
+            if (keyInfo.event.key === "Enter" && !listening) {
+                listening = true;
                 console.log('start listening');
-                controller.listen();
+                controller.startListening();
+
+                setTimeout(() => {
+                    console.log('can stop listening with enter now');
+                    scene.onKeyboardObservable.addOnce((keyInfo: KeyboardInfo) => {
+                        if (keyInfo.event.key === "Enter" && listening) {
+                            console.log('stop listening now');
+                            controller.stopListening(() => {
+                                console.log('set listening to false');
+                                listening = false;
+                            });
+                        }
+                    });
+                }, 1000);
             }
         });
     
