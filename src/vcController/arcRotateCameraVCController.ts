@@ -1,6 +1,7 @@
 import { ArcRotateCamera } from "@babylonjs/core";
 import { Nullable } from "@babylonjs/core/types";
-import { ResultReason } from 'microsoft-cognitiveservices-speech-sdk';
+import { Tools } from "@babylonjs/core/Misc"
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const speechsdk = require('microsoft-cognitiveservices-speech-sdk');
@@ -33,6 +34,8 @@ export class ArcRotateCameraVCController {
     private _config: any;
     private _recognizer: any;
     private _zoomStep = 1; 
+    private _rotateStep = Tools.ToRadians(45);
+    private _panStep = 0.5;
     
     constructor(camera: ArcRotateCamera) {
         this._camera = camera;
@@ -84,6 +87,44 @@ export class ArcRotateCameraVCController {
                 this._camera!.radius -= zoomAmt;
             }
         }
+        if (text.startsWith("rotate")) {
+            let rotateAmount = this._rotateStep;
+            const matchDegree = text.match(/(left|right|up|down) (by )?(.+) (degrees)?/);
+            console.log('match', matchDegree);
+            if (matchDegree) {
+                rotateAmount = Tools.ToRadians(this._convertNumberString(matchDegree[3]));
+            }
+            console.log('rotate amt', rotateAmount);
+            const finalRot = rotateAmount * times;
+            if (text.includes("left")) {
+                this._camera!.alpha -= finalRot;
+            } else if (text.includes("right")) {
+                this._camera!.alpha += finalRot;
+            } else if (text.includes("up")) {
+                this._camera!.beta -= finalRot;
+            } else {
+                this._camera!.beta += finalRot;
+            }
+        }
+        if (text.startsWith("pan")) {
+            let panAmount = this._panStep;
+            const matchAmt = text.match(/(left|right|up|down) (by )?(.+) ?/);
+            console.log('match', matchAmt);
+            if (matchAmt) {
+                panAmount = this._convertNumberString(matchAmt[3]);
+            }
+            console.log('rotate amt', panAmount);
+            const finalPan = panAmount * times;
+            if (text.includes("left")) {
+                this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Left()).scale(finalPan));
+            } else if (text.includes("right")) {
+                this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Right()).scale(finalPan));
+            } else if (text.includes("up")) {
+                this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Up()).scale(finalPan));
+            } else if (text.includes("down")) {
+                this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Down()).scale(finalPan));
+            }
+        }
     }
 
     public createModel() {
@@ -92,6 +133,10 @@ export class ArcRotateCameraVCController {
 
         this._config = speechConfig;
 
+    }
+
+    private _treatText(text: string) {
+        return text.toLowerCase().replace(/[!?.,:;]/, "");
     }
     
     public startListening(listenCallback?: () => void) {
@@ -122,7 +167,7 @@ export class ArcRotateCameraVCController {
             if (text) {
                 console.log("Recognized text", text);
                 try {
-                    this._parseCommands(text.toLowerCase());
+                    this._parseCommands(this._treatText(text));
                     if (listenCallback) {
                         listenCallback();
                     }
