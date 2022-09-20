@@ -1,17 +1,12 @@
-import { ArcRotateCamera } from "@babylonjs/core";
 import { Nullable } from "@babylonjs/core/types";
 import { Tools } from "@babylonjs/core/Misc"
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Vector3, Quaternion } from "@babylonjs/core/Maths/math.vector";
+import {UniversalCamera} from "@babylonjs/core/Cameras/universalCamera";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const speechsdk = require('microsoft-cognitiveservices-speech-sdk');
 
 import {modelKey} from "./model/modelKey";
-
-enum CommandList {
-    ZOOM,
-    UNRECOGNIZED_COMMAND
-}
 
 const numberToStringArray = [
     "zero",
@@ -27,25 +22,18 @@ const numberToStringArray = [
 ];
 
 /**
- * This class utilizes voice recognition commands to manipulate an Babylon ArcRotateCamera
+ * This class utilizes voice recognition commands to manipulate an Babylon UniversalCamera
  */
-export class ArcRotateCameraVCController {
-    private _camera: Nullable<ArcRotateCamera> = null;
+export class UniversalCameraVCController {
+    private _camera: Nullable<UniversalCamera> = null;
     private _config: any;
     private _recognizer: any;
     private _zoomStep = 1; 
-    private _rotateStep = Tools.ToRadians(45);
+    private _rotateStep = Tools.ToRadians(15);
     private _panStep = 0.5;
     
-    constructor(camera: ArcRotateCamera) {
+    constructor(camera: UniversalCamera) {
         this._camera = camera;
-    }
-
-    private _getMainCommand(text: string) {
-        if (text.startsWith("zoom")) {
-            return CommandList.ZOOM;
-        }
-        return CommandList.UNRECOGNIZED_COMMAND;
     }
 
     private _convertNumberString(number: string) {
@@ -76,17 +64,6 @@ export class ArcRotateCameraVCController {
             times = this._convertNumberString(matchTimes[1]);
         }
         console.log('times repeat', times);
-        // Zoom case
-        if (text.startsWith("zoom")) {
-            const zoomAmt = this._zoomStep * times;
-            if (text.includes("out")) {
-                console.log('zoom out');
-                this._camera!.radius += zoomAmt;
-            } else {
-                console.log('zoom in');
-                this._camera!.radius -= zoomAmt;
-            }
-        }
         if (text.startsWith("rotate") || text.startsWith("spin") || text.startsWith("look")) {
             let rotateAmount = this._rotateStep;
             const matchDegree = text.match(/(left|right|up|down) (by )?(.+) (degrees)?/);
@@ -96,19 +73,27 @@ export class ArcRotateCameraVCController {
             }
             console.log('rotate amt', rotateAmount);
             const finalRot = rotateAmount * times;
+            const vectorToRotate = this._camera!.target.subtract(this._camera!.position);
+            const len = vectorToRotate.length();
+            vectorToRotate.normalize();
+            let axisToRotate;
             if (text.includes("left")) {
-                this._camera!.alpha -= finalRot;
+                axisToRotate = Vector3.Down().scale(finalRot);
             } else if (text.includes("right")) {
-                this._camera!.alpha += finalRot;
+                axisToRotate = Vector3.Up().scale(finalRot);
             } else if (text.includes("up")) {
-                this._camera!.beta -= finalRot;
+                axisToRotate = Vector3.Left().scale(finalRot);
             } else {
-                this._camera!.beta += finalRot;
+                axisToRotate = Vector3.Right().scale(finalRot);
             }
+            
+            const rotatedAxis = vectorToRotate.applyRotationQuaternion(Quaternion.FromEulerVector(axisToRotate)).scale(len);
+
+            this._camera!.target = this._camera!.position.add(rotatedAxis); 
         }
-        if (text.startsWith("pan") || text.startsWith("move")) {
+        if (text.startsWith("move")) {
             let panAmount = this._panStep;
-            const matchAmt = text.match(/(left|right|up|down) (by )?(.+) ?/);
+            const matchAmt = text.match(/(left|right|up|down|forwards|backwards) (by )?(.+) ?/);
             console.log('match', matchAmt);
             if (matchAmt) {
                 panAmount = this._convertNumberString(matchAmt[3]);
@@ -116,13 +101,23 @@ export class ArcRotateCameraVCController {
             console.log('pan amt', panAmount);
             const finalPan = panAmount * times;
             if (text.includes("left")) {
+                this._camera?.position.addInPlace(this._camera.getDirection(Vector3.Left()).scale(finalPan));
                 this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Left()).scale(finalPan));
             } else if (text.includes("right")) {
+                this._camera?.position.addInPlace(this._camera.getDirection(Vector3.Right()).scale(finalPan));
                 this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Right()).scale(finalPan));
             } else if (text.includes("up")) {
+                this._camera?.position.addInPlace(this._camera.getDirection(Vector3.Up()).scale(finalPan));
                 this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Up()).scale(finalPan));
             } else if (text.includes("down")) {
+                this._camera?.position.addInPlace(this._camera.getDirection(Vector3.Down()).scale(finalPan));
                 this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Down()).scale(finalPan));
+            } else if (text.includes("forward")) {
+                this._camera?.position.addInPlace(this._camera.getDirection(Vector3.Forward()).scale(finalPan));
+                this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Forward()).scale(finalPan));
+            } else if (text.includes("backward")) {
+                this._camera?.position.addInPlace(this._camera.getDirection(Vector3.Backward()).scale(finalPan));
+                this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Backward()).scale(finalPan));
             }
         }
     }

@@ -1,6 +1,7 @@
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { Scene } from "@babylonjs/core/scene";
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import {UniversalCamera} from "@babylonjs/core/Cameras/universalCamera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder";
 import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
@@ -19,6 +20,7 @@ import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
 
 import { ArcRotateCameraVCController } from "../vcController/arcRotateCameraVCController";
 import { KeyboardInfo } from "@babylonjs/core";
+import { UniversalCameraVCController } from "../vcController/universalCameraVCController";
 
 export class DefaultSceneWithTexture implements CreateSceneClass {
     createScene = async (
@@ -41,14 +43,15 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         });
 
         // This creates and positions a free camera (non-mesh)
-        const camera = new ArcRotateCamera(
-            "my first camera",
-            0,
-            Math.PI / 3,
-            10,
-            new Vector3(0, 0, 0),
-            scene
-        );
+        // const camera = new ArcRotateCamera(
+        //     "my first camera",
+        //     0,
+        //     Math.PI / 3,
+        //     10,
+        //     new Vector3(0, 0, 0),
+        //     scene
+        // );
+        const camera = new UniversalCamera("camera", new Vector3(0, 1, -10));
 
         // This targets the camera to scene origin
         camera.setTarget(Vector3.Zero());
@@ -105,7 +108,8 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
 
         shadowGenerator.getShadowMap()!.renderList!.push(sphere);
 
-        const controller = new ArcRotateCameraVCController(camera);
+        // const controller = new ArcRotateCameraVCController(camera);
+        const controller = new UniversalCameraVCController(camera);
 
         controller.createModel();
         
