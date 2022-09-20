@@ -18,9 +18,10 @@ import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator"
 
 import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
 
-import { ArcRotateCameraVCController } from "../vcController/arcRotateCameraVCController";
 import { KeyboardInfo } from "@babylonjs/core";
-import { UniversalCameraVCController } from "../vcController/universalCameraVCController";
+import { OnlineVoiceControlCommandProducer } from "../commandController/OnlineVoiceControlCommandProducer";
+import { ArcRotateCameraCommandProcessor } from "../commandController/arcRotateCameraCommandProcessor";
+import { UniversalCameraCommandProcessor } from "../commandController/universalCameraCommandProcessor";
 
 export class DefaultSceneWithTexture implements CreateSceneClass {
     createScene = async (
@@ -108,25 +109,27 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
 
         shadowGenerator.getShadowMap()!.renderList!.push(sphere);
 
-        // const controller = new ArcRotateCameraVCController(camera);
-        const controller = new UniversalCameraVCController(camera);
+        const vc = new OnlineVoiceControlCommandProducer();
+        
+        // const cameraProcessor = new ArcRotateCameraCommandProcessor(camera);
+        const cameraProcessor = new UniversalCameraCommandProcessor(camera);
 
-        controller.createModel();
+        vc.addProcessor(cameraProcessor);
         
         let listening = false;
         scene.onKeyboardObservable.add((keyInfo: KeyboardInfo) => {
-            // Start listening on enter
             if (keyInfo.event.key === "Enter" && !listening) {
                 listening = true;
                 console.log('start listening');
-                controller.startListening();
+                vc.start();
 
                 setTimeout(() => {
                     console.log('can stop listening with enter now');
                     scene.onKeyboardObservable.addOnce((keyInfo: KeyboardInfo) => {
+                        console.log('pressed enter')
                         if (keyInfo.event.key === "Enter" && listening) {
                             console.log('stop listening now');
-                            controller.stopListening(() => {
+                            vc.stop(() => {
                                 console.log('set listening to false');
                                 listening = false;
                             });
@@ -135,6 +138,7 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
                 }, 1000);
             }
         });
+        
     
 
         return scene;
