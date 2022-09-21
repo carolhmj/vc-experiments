@@ -25,7 +25,7 @@ export class CommandProducer {
         }
     }
 
-    protected _processCommand(command: Command) {
+    protected _produceCommand(command: Command) {
         for (const processor of this._processors) {
             processor.processCommand(command);
         }

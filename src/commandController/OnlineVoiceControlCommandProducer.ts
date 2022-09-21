@@ -115,7 +115,7 @@ export class OnlineVoiceControlCommandProducer extends CommandProducer {
                 try {
                     const commands = this._parseCommands(this._treatText(text));
                     for (const command of commands) {
-                        this._processCommand(command);
+                        this._produceCommand(command);
                     }
                 } catch (e) {
                     console.error(e);
