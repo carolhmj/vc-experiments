@@ -119,29 +119,24 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         vc.addProcessor(cameraProcessor);
         
         let listening = false;
-        scene.onKeyboardObservable.add((keyInfo: KeyboardInfo) => {
-            if (keyInfo.event.key === "Enter" && !listening) {
+        let lastStateToggle = Date.now();
+
+        const keyListen = (keyInfo: KeyboardInfo) => {
+            const canChangeState = Date.now() - lastStateToggle > 1000;
+            if (keyInfo.event.key === "Enter" && canChangeState && !listening) {
                 listening = true;
                 console.log('start listening');
                 vc.start();
-
-                setTimeout(() => {
-                    console.log('can stop listening with enter now');
-                    scene.onKeyboardObservable.addOnce((keyInfo: KeyboardInfo) => {
-                        console.log('pressed enter')
-                        if (keyInfo.event.key === "Enter" && listening) {
-                            console.log('stop listening now');
-                            vc.stop(() => {
-                                console.log('set listening to false');
-                                listening = false;
-                            });
-                        }
-                    });
-                }, 1000);
+                lastStateToggle = Date.now();
+            } else if (keyInfo.event.key === "Enter" && canChangeState && listening) {
+                vc.stop(() => {
+                    listening = false;
+                    console.log('stop listening');
+                    lastStateToggle = Date.now();
+                });
             }
-        });
-        
-    
+        }
+        const keyListenObserver = scene.onKeyboardObservable.add(keyListen);
 
         return scene;
     };

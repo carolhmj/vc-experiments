@@ -16,14 +16,11 @@ export class HeadPoseCommandProducer extends CommandProducer {
         calculated: boolean;
     };
     private _numRestingSamples = 15; //minimum samples needed to get the average
-
-    private _batchTransformation: {
-        totalPitchChange: number;
-        totalYawChange: number;
-        stage: "accumulating" | "waiting to send" | "sent";
-        lastSent: number;
-    };
-    private _batchIntervals = 1000; // Interval in ms between sending two batches of transformation
+    private _timingIntervals = 700; // Interval in ms between sending two batches of transformation
+    private _verticalAngleDiff = Tools.ToRadians(20);
+    private _horizontalAngleDiff = Tools.ToRadians(20);
+    private _verticalAngleChange = Tools.ToRadians(1);
+    private _horizontalAngleChange = Tools.ToRadians(1);
 
     constructor() {
         super();
@@ -33,13 +30,6 @@ export class HeadPoseCommandProducer extends CommandProducer {
             yaw: 0,
             numSamples: 0,
             calculated: false,
-        };
-
-        this._batchTransformation = {
-            totalPitchChange: 0,
-            totalYawChange: 0,
-            stage: "accumulating",
-            lastSent: Date.now(),
         };
 
         const existingVideo = document.getElementById("headPoseVideo");
@@ -71,77 +61,51 @@ export class HeadPoseCommandProducer extends CommandProducer {
             this._restingPosition.numSamples >= this._numRestingSamples &&
             !this._restingPosition.calculated
         ) {
-            console.log("more than numsamples");
+            // console.log("more than numsamples");
             this._restingPosition.pitch /= this._restingPosition.numSamples;
             this._restingPosition.yaw /= this._restingPosition.numSamples;
             this._restingPosition.calculated = true;
             console.log(
-                "average head position pitch and yaw",
-                this._restingPosition.pitch,
-                this._restingPosition.yaw
+                "average head position pitch and yaw in degrees",
+                Tools.ToDegrees(this._restingPosition.pitch),
+                Tools.ToDegrees(this._restingPosition.yaw)
             );
         }
         return this._restingPosition.calculated;
     }
 
-    private _accumulateBatch(pitch: number, yaw: number) {
-        const pitchDiffLim = Tools.ToRadians(25);
-        const yawDiffLim = Tools.ToRadians(30);
-        const rotValue = Tools.ToRadians(5);
-
-        const distPitch = pitch - this._restingPosition.pitch;
-        console.log("diffpitch in degrees", Tools.ToDegrees(distPitch));
-        console.log("diffpitch in degrees", Tools.ToDegrees(distPitch));
-        if (
-            Math.abs(distPitch) > pitchDiffLim &&
-            this._batchTransformation.stage === "accumulating"
-        ) {
-            this._batchTransformation.totalPitchChange += distPitch;
-        }
-        const diffYaw = yaw - this._restingPosition.yaw;
-        if (
-            Math.abs(diffYaw) > yawDiffLim &&
-            this._batchTransformation.stage === "accumulating"
-        ) {
-            this._batchTransformation.totalYawChange += diffYaw;
-        }
-
-        if (
-            Date.now() - this._batchTransformation.lastSent >
-            this._batchIntervals
-        ) {
-            this._batchTransformation.stage = "waiting to send";
-        }
-        // returns if the batch can be sent
-        return this._batchTransformation.stage === "waiting to send";
-    }
-
-    private _sendBatch() {
-        const batch = this._batchTransformation;
-        console.log('batch', batch.totalPitchChange, batch.totalYawChange);
-        if (Math.abs(batch.totalPitchChange) > 0) {
+    private _calculateCommand(pitch: number, yaw: number) {
+        const diffPitch = pitch - this._restingPosition.pitch;
+        // console.log("diffpitch in degrees", Tools.ToDegrees(diffPitch));
+        if (Math.abs(diffPitch) > this._verticalAngleDiff) {
             this._produceCommand({
                 action: "rotate",
-                modifier: batch.totalPitchChange < 0 ? "up" : "down",
-                // value: Math.abs(batch.totalPitchChange),
+                modifier: diffPitch < 0 ? "up" : "down",
+                value: this._verticalAngleChange
             });
         }
-        // this._produceCommand({
-        //     action: "rotate",
-        //     modifier: batch.totalYawChange < 0 ? "left" : "right",
-        //     value: Math.abs(batch.totalYawChange)*0.01,
-        // });
-
-        this._batchTransformation = {
-            totalPitchChange: 0,
-            totalYawChange: 0,
-            stage: "accumulating",
-            lastSent: Date.now(),
-        };
+        const diffYaw = yaw - this._restingPosition.yaw;
+        // console.log("diffyaw in degrees", Tools.ToDegrees(diffPitch));
+        if (Math.abs(diffYaw) > this._horizontalAngleDiff) {
+            this._produceCommand({
+                action: "rotate",
+                modifier: diffYaw > 0 ? "right" : "left",
+                value: this._horizontalAngleChange
+            });
+        }
     }
 
     _runDetection = () => {
-        console.log("start detect");
+        // console.log("start detect");
+        // Resting position hasn't been calculated, calculate it with a shorter interval
+        if (this._restingPosition.calculated) {
+            this._runningId = window.setTimeout(this._runDetection, 100);
+        } else {
+            this._runningId = window.setTimeout(
+                this._runDetection,
+                this._timingIntervals
+            );
+        }
         this._human
             .detect(this._video, {
                 face: {
@@ -149,11 +113,11 @@ export class HeadPoseCommandProducer extends CommandProducer {
                     detector: { rotation: true },
                     mesh: { enabled: true },
                 },
+                gesture: {
+                    enabled: false,
+                },
             })
             .then((result) => {
-                // console.log('human detect result', result);
-                this._runningId = requestAnimationFrame(this._runDetection);
-                // console.log('gestures:', result.gesture.map(g => g.gesture).join(","))
                 if (
                     result.face &&
                     result.face.length > 0 &&
@@ -164,12 +128,8 @@ export class HeadPoseCommandProducer extends CommandProducer {
                         pitch,
                         yaw
                     );
-                    // Accumulate resting position samples
                     if (canCalulate) {
-                        const canSendBatch = this._accumulateBatch(pitch, yaw);
-                        if (canSendBatch) {
-                            this._sendBatch();
-                        }
+                        this._calculateCommand(pitch, yaw);
                     }
                 }
             });
@@ -195,7 +155,8 @@ export class HeadPoseCommandProducer extends CommandProducer {
         this._stream?.stop();
         if (this._runningId) {
             console.log("stop detection");
-            cancelAnimationFrame(this._runningId);
+            // cancelAnimationFrame(this._runningId);
+            clearTimeout(this._runningId);
         }
         if (stopCallback) {
             stopCallback();
