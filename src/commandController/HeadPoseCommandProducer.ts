@@ -21,6 +21,8 @@ export class HeadPoseCommandProducer extends CommandProducer {
     private _horizontalAngleDiff = Tools.ToRadians(20);
     private _verticalAngleChange = Tools.ToRadians(1);
     private _horizontalAngleChange = Tools.ToRadians(1);
+    private _videoContainer: HTMLDivElement;
+    private _instructionOverlay?: HTMLDivElement;
 
     constructor() {
         super();
@@ -32,18 +34,49 @@ export class HeadPoseCommandProducer extends CommandProducer {
             calculated: false,
         };
 
+        const existingVideoContainer = document.getElementById("videoContainer");
+        if (existingVideoContainer) {
+            this._videoContainer = existingVideoContainer as HTMLDivElement;
+        } else {
+            this._videoContainer = document.createElement("div");
+            document.body.appendChild(this._videoContainer);
+            this._videoContainer.style.position = "absolute";
+            this._videoContainer.style.top = "10px";
+            this._videoContainer.style.right = "10px";
+            this._videoContainer.style.width = "350px";
+            this._videoContainer.style.height = "350px";
+            this._videoContainer.style.background = "black";
+            // this._videoContainer.innerHTML = "test";
+            this._videoContainer.style.display = "flex";
+            this._videoContainer.style.alignItems = "center";
+            this._videoContainer.style.justifyContent = "center";
+
+            const innerDiv = document.createElement("div");
+            innerDiv.style.position = "absolute";
+            innerDiv.style.width = "100%";
+            innerDiv.style.height = "100%";
+            innerDiv.style.background = "rgba(111, 111, 111, 0.1)";
+            innerDiv.style.zIndex = "100";
+            innerDiv.style.display = "flex";
+            innerDiv.style.justifyContent = "center";
+            innerDiv.style.alignItems = "center";
+            this._videoContainer.appendChild(innerDiv);
+
+            const innerDivText = document.createElement("div");
+            innerDivText.style.color = "white";
+            innerDivText.innerHTML = "WAITING FOR VIDEO";
+            innerDiv.appendChild(innerDivText);
+        }
+
         const existingVideo = document.getElementById("headPoseVideo");
         if (existingVideo) {
             this._video = existingVideo as HTMLVideoElement;
         } else {
             this._video = document.createElement("video");
-            document.body.appendChild(this._video);
+            // document.body.appendChild(this._video);
             this._video.id = "headPoseVideo";
-            this._video.style.position = "absolute";
-            this._video.style.top = "10px";
-            this._video.style.right = "10px";
-            this._video.style.width = "350px";
-            this._video.style.height = "350px";
+            this._videoContainer.appendChild(this._video);
+            this._video.style.width = "100%";
         }
 
         this._human = new Human({});
