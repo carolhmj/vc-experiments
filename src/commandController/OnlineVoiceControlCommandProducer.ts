@@ -67,12 +67,12 @@ export class OnlineVoiceControlCommandProducer extends CommandProducer {
         const parsed: Command[] = [];
 
         for (const clause of andClauses) {
-            const structure = clause.match(/(\w+) (\w+)?(.*)/);
+            const structure = clause.match(/(\w+)( \w+)?(.*)/);
             console.log('structure match', structure);
 
             if (structure && structure.length > 1) {
                 const action = structure[1];
-                const modifier = structure[2];
+                const modifier = structure[2]?.trim();
                 const value = this._parseValue(structure[3]);
                 parsed.push({action, modifier, value});
             }

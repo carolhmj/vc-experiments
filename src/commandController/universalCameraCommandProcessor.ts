@@ -14,6 +14,7 @@ export class UniversalCameraCommandProcessor implements CommandProcessor {
     
     constructor(camera: UniversalCamera) {
         this._camera = camera;
+        this._camera.storeState();
     }
 
     processCommand(command: Command) {
@@ -70,6 +71,9 @@ export class UniversalCameraCommandProcessor implements CommandProcessor {
                 this._camera?.position.addInPlace(this._camera.getDirection(Vector3.Backward()).scale(finalPan));
                 this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Backward()).scale(finalPan));
             }
+        }
+        if (command.action === "reset") {
+            this._camera.restoreState();
         }
     }
 }

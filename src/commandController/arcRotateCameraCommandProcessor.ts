@@ -15,6 +15,7 @@ export class ArcRotateCameraCommandProcessor implements CommandProcessor {
     
     constructor(camera: ArcRotateCamera) {
         this._camera = camera;
+        this._camera.storeState();
     }
 
     processCommand(command: Command) {
@@ -66,6 +67,9 @@ export class ArcRotateCameraCommandProcessor implements CommandProcessor {
             } else if (command.modifier === ("down")) {
                 this._camera.target.addInPlace(this._camera.getDirection(Vector3.Down()).scale(finalPan));
             }
+        }
+        if (command.action === "reset") {
+            this._camera.restoreState();
         }
     }
 }
