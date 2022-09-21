@@ -114,10 +114,8 @@ export class OnlineVoiceControlCommandProducer extends CommandProducer {
                 console.log("Recognized text", text);
                 try {
                     const commands = this._parseCommands(this._treatText(text));
-                    for (const processor of this._processors) {
-                        for (const command of commands) {
-                            processor.processCommand(command);
-                        }
+                    for (const command of commands) {
+                        this._processCommand(command);
                     }
                 } catch (e) {
                     console.error(e);

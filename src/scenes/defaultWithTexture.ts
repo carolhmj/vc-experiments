@@ -22,6 +22,7 @@ import { KeyboardInfo } from "@babylonjs/core";
 import { OnlineVoiceControlCommandProducer } from "../commandController/OnlineVoiceControlCommandProducer";
 import { ArcRotateCameraCommandProcessor } from "../commandController/arcRotateCameraCommandProcessor";
 import { UniversalCameraCommandProcessor } from "../commandController/universalCameraCommandProcessor";
+import { HeadPoseCommandProducer } from "../commandController/HeadPoseCommandProducer";
 
 export class DefaultSceneWithTexture implements CreateSceneClass {
     createScene = async (
@@ -36,11 +37,11 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
             import("@babylonjs/inspector"),
         ]).then((_values) => {
             console.log(_values);
-            scene.debugLayer.show({
-                handleResize: true,
-                overlay: true,
-                globalRoot: document.getElementById("#root") || undefined,
-            });
+            // scene.debugLayer.show({
+            //     handleResize: true,
+            //     overlay: true,
+            //     globalRoot: document.getElementById("#root") || undefined,
+            // });
         });
 
         // This creates and positions a free camera (non-mesh)
@@ -109,7 +110,8 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
 
         shadowGenerator.getShadowMap()!.renderList!.push(sphere);
 
-        const vc = new OnlineVoiceControlCommandProducer();
+        // const vc = new OnlineVoiceControlCommandProducer();
+        const vc = new HeadPoseCommandProducer();
         
         // const cameraProcessor = new ArcRotateCameraCommandProcessor(camera);
         const cameraProcessor = new UniversalCameraCommandProcessor(camera);

@@ -2,7 +2,7 @@
  * A command is something used to give instructions to be executed
  */
 
-import { CommandProcessor } from "./commandProcessor";
+import { CommandProcessor, Command } from "./commandProcessor";
 
 
 /**
@@ -22,6 +22,12 @@ export class CommandProducer {
         const idx = this._processors.indexOf(processor);
         if (idx >= 0) {
             this._processors.splice(idx, 1);
+        }
+    }
+
+    protected _processCommand(command: Command) {
+        for (const processor of this._processors) {
+            processor.processCommand(command);
         }
     }
 
