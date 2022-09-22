@@ -7,6 +7,8 @@ import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder";
 import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { CreateSceneClass } from "../createScene";
+import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
+import {HemisphericLight} from "@babylonjs/core";
 
 // If you don't need the standard material you will still need to import it since the scene requires it.
 // import "@babylonjs/core/Materials/standardMaterial";
@@ -24,6 +26,10 @@ import { ArcRotateCameraCommandProcessor } from "../commandController/arcRotateC
 import { UniversalCameraCommandProcessor } from "../commandController/universalCameraCommandProcessor";
 import { HeadPoseCommandProducer } from "../commandController/HeadPoseCommandProducer";
 
+import amy from "../../assets/glb/amy-anim.glb";
+import "@babylonjs/loaders/glTF";
+import { AnimationGroupCommandProcessor } from "../commandController/animationGroupCommandProcessor";
+
 export class DefaultSceneWithTexture implements CreateSceneClass {
     createScene = async (
         engine: Engine,
@@ -37,23 +43,23 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
             import("@babylonjs/inspector"),
         ]).then((_values) => {
             console.log(_values);
-            // scene.debugLayer.show({
-            //     handleResize: true,
-            //     overlay: true,
-            //     globalRoot: document.getElementById("#root") || undefined,
-            // });
+            scene.debugLayer.show({
+                handleResize: true,
+                overlay: true,
+                globalRoot: document.getElementById("#root") || undefined,
+            });
         });
 
         // This creates and positions a free camera (non-mesh)
-        // const camera = new ArcRotateCamera(
-        //     "my first camera",
-        //     0,
-        //     Math.PI / 3,
-        //     10,
-        //     new Vector3(0, 0, 0),
-        //     scene
-        // );
         const camera = new UniversalCamera("camera", new Vector3(0, 1, -10));
+        const camera2 = new ArcRotateCamera(
+            "spy",
+            0,
+            Math.PI / 3,
+            10,
+            new Vector3(0, 0, 0),
+            scene
+        );
 
         // This targets the camera to scene origin
         camera.setTarget(Vector3.Zero());
@@ -62,24 +68,41 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         camera.attachControl(canvas, true);
 
         // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
-        // const light = new HemisphericLight(
-        //     "light",
-        //     new Vector3(0, 1, 0),
-        //     scene
-        // );
-
-        // // Default intensity is 1. Let's dim the light a small amount
-        // light.intensity = 0.7;
-
-        // Our built-in 'sphere' shape.
-        const sphere = CreateSphere(
-            "sphere",
-            { diameter: 2, segments: 32 },
+        const lighth = new HemisphericLight(
+            "light",
+            new Vector3(0, 1, 0),
             scene
         );
 
-        // Move the sphere upward 1/2 its height
-        sphere.position.y = 1;
+        // Default intensity is 1. Let's dim the light a small amount
+        lighth.intensity = 0.7;
+
+        // Our built-in 'sphere' shape.
+        // const sphere = CreateSphere(
+        //     "sphere",
+        //     { diameter: 2, segments: 32 },
+        //     scene
+        // );
+
+        // // Move the sphere upward 1/2 its height
+        // sphere.position.y = 1;
+
+        const amyImport = await SceneLoader.ImportMeshAsync("", "", amy);
+        console.log(amyImport);
+        // scene.beginAnimation(amyImport.skeletons[0], 0, 100, true);
+        const animationGroups = amyImport.animationGroups;
+        const forwardAnim = animationGroups.filter((g) => g.name === "WalkForwards")[0];
+        const backAnim = animationGroups.filter((g) => g.name === "WalkBackwards")[0];
+        const lookArnd = animationGroups.filter((g) => g.name === "LookAround")[0];
+        lookArnd.speedRatio = 4.5;
+
+        const amyMesh = amyImport.meshes[0];
+        amyMesh.parent = camera;
+        amyMesh.position.x = 0.2;
+        amyMesh.position.y = -1.5;
+        amyMesh.position.z = 1.5;
+
+        camera.minZ = 0.001;
 
         // Our built-in 'ground' shape.
         const ground = CreateGround(
@@ -97,7 +120,7 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
 
         const light = new DirectionalLight(
             "light",
-            new Vector3(0, -1, 1),
+            new Vector3(0, -1, -1),
             scene
         );
         light.intensity = 0.5;
@@ -108,15 +131,21 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         shadowGenerator.blurScale = 2;
         shadowGenerator.setDarkness(0.2);
 
-        shadowGenerator.getShadowMap()!.renderList!.push(sphere);
+        // shadowGenerator.getShadowMap()!.renderList!.push(sphere);
 
-        // const vc = new OnlineVoiceControlCommandProducer();
-        const vc = new HeadPoseCommandProducer();
+        const vc = new OnlineVoiceControlCommandProducer();
+        // const vc = new HeadPoseCommandProducer();
         
         // const cameraProcessor = new ArcRotateCameraCommandProcessor(camera);
         const cameraProcessor = new UniversalCameraCommandProcessor(camera);
 
+        const animProcessor = new AnimationGroupCommandProcessor();
+        animProcessor.linkCommandToAnimation(forwardAnim, "move", ["forward"]);
+        animProcessor.linkCommandToAnimation(backAnim, "move", ["backward"]);
+        animProcessor.linkCommandToAnimation(lookArnd, "look");
+
         vc.addProcessor(cameraProcessor);
+        vc.addProcessor(animProcessor);
         
         let listening = false;
         let lastStateToggle = Date.now();

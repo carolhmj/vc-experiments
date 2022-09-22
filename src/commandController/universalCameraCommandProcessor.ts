@@ -2,6 +2,7 @@ import { Tools } from "@babylonjs/core/Misc"
 import { Vector3, Quaternion } from "@babylonjs/core/Maths/math.vector";
 import {UniversalCamera} from "@babylonjs/core/Cameras/universalCamera";
 import { Command, CommandProcessor } from "./commandProcessor";
+import {Animation} from "@babylonjs/core/Animations/animation";
 
 
 /**
@@ -10,7 +11,10 @@ import { Command, CommandProcessor } from "./commandProcessor";
 export class UniversalCameraCommandProcessor implements CommandProcessor {
     private _camera: UniversalCamera;
     private _rotateStep = Tools.ToRadians(15);
-    private _panStep = 0.5;
+    private _panStep = 1;
+    private _animate = true;
+    private _animationRate = 60;
+    private _animationDuration = 60;
     
     constructor(camera: UniversalCamera) {
         this._camera = camera;
@@ -43,7 +47,12 @@ export class UniversalCameraCommandProcessor implements CommandProcessor {
             
             const rotatedAxis = vectorToRotate.applyRotationQuaternion(Quaternion.FromEulerVector(axisToRotate)).scale(len);
 
-            this._camera.target = this._camera.position.add(rotatedAxis); 
+            const finalTarget = this._camera.position.add(rotatedAxis);
+            if (this._animate) {
+                Animation.CreateAndStartAnimation("anim", this._camera, "target", this._animationRate, this._animationDuration, this._camera.target, finalTarget, 0);
+            } else {
+                this._camera.target = finalTarget; 
+            }
         }
         if (command.action === ("move") || command.action === ("walk")) {
             let panAmount = this._panStep;
@@ -52,24 +61,34 @@ export class UniversalCameraCommandProcessor implements CommandProcessor {
             }
             console.log('pan amt', panAmount);
             const finalPan = panAmount * times;
+            let finalPosition = new Vector3();
+            let finalTarget = new Vector3();
             if (command.modifier === ("left")) {
-                this._camera?.position.addInPlace(this._camera.getDirection(Vector3.Left()).scale(finalPan));
-                this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Left()).scale(finalPan));
+                finalPosition = this._camera.position.add(this._camera.getDirection(Vector3.Left()).scale(finalPan));
+                finalTarget = this._camera.target.add(this._camera.getDirection(Vector3.Left()).scale(finalPan));
             } else if (command.modifier === ("right")) {
-                this._camera?.position.addInPlace(this._camera.getDirection(Vector3.Right()).scale(finalPan));
-                this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Right()).scale(finalPan));
+                finalPosition = this._camera.position.add(this._camera.getDirection(Vector3.Right()).scale(finalPan));
+                finalTarget = this._camera.target.add(this._camera.getDirection(Vector3.Right()).scale(finalPan));
             } else if (command.modifier === ("up")) {
-                this._camera?.position.addInPlace(this._camera.getDirection(Vector3.Up()).scale(finalPan));
-                this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Up()).scale(finalPan));
+                finalPosition = this._camera.position.add(this._camera.getDirection(Vector3.Up()).scale(finalPan));
+                finalTarget = this._camera.target.add(this._camera.getDirection(Vector3.Up()).scale(finalPan));
             } else if (command.modifier === ("down")) {
-                this._camera?.position.addInPlace(this._camera.getDirection(Vector3.Down()).scale(finalPan));
-                this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Down()).scale(finalPan));
+                finalPosition = this._camera.position.add(this._camera.getDirection(Vector3.Down()).scale(finalPan));
+                finalTarget = this._camera.target.add(this._camera.getDirection(Vector3.Down()).scale(finalPan));
             } else if (command.modifier === ("forward")) {
-                this._camera?.position.addInPlace(this._camera.getDirection(Vector3.Forward()).scale(finalPan));
-                this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Forward()).scale(finalPan));
+                finalPosition = this._camera.position.add(this._camera.getDirection(Vector3.Forward()).scale(finalPan));
+                finalTarget = this._camera.target.add(this._camera.getDirection(Vector3.Forward()).scale(finalPan));
             } else if (command.modifier === ("backward")) {
-                this._camera?.position.addInPlace(this._camera.getDirection(Vector3.Backward()).scale(finalPan));
-                this._camera?.target.addInPlace(this._camera.getDirection(Vector3.Backward()).scale(finalPan));
+                finalPosition = this._camera.position.add(this._camera.getDirection(Vector3.Backward()).scale(finalPan));
+                finalTarget = this._camera.target.add(this._camera.getDirection(Vector3.Backward()).scale(finalPan));
+            }
+
+            if (this._animate) {
+                Animation.CreateAndStartAnimation("anim", this._camera, "position", this._animationRate, this._animationDuration, this._camera.position, finalPosition, 0);
+                Animation.CreateAndStartAnimation("anim", this._camera, "target", this._animationRate, this._animationDuration, this._camera.target, finalTarget, 0);
+            } else {
+                this._camera.position = finalPosition;
+                this._camera.target = finalTarget;
             }
         }
         if (command.action === "reset") {

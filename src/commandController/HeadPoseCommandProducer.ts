@@ -22,7 +22,6 @@ export class HeadPoseCommandProducer extends CommandProducer {
     private _verticalAngleChange = Tools.ToRadians(1);
     private _horizontalAngleChange = Tools.ToRadians(1);
     private _videoContainer: HTMLDivElement;
-    private _instructionOverlay?: HTMLDivElement;
 
     constructor() {
         super();
@@ -39,6 +38,7 @@ export class HeadPoseCommandProducer extends CommandProducer {
             this._videoContainer = existingVideoContainer as HTMLDivElement;
         } else {
             this._videoContainer = document.createElement("div");
+            this._videoContainer.id = "videoContainer";
             document.body.appendChild(this._videoContainer);
             this._videoContainer.style.position = "absolute";
             this._videoContainer.style.top = "10px";
@@ -46,16 +46,16 @@ export class HeadPoseCommandProducer extends CommandProducer {
             this._videoContainer.style.width = "350px";
             this._videoContainer.style.height = "350px";
             this._videoContainer.style.background = "black";
-            // this._videoContainer.innerHTML = "test";
             this._videoContainer.style.display = "flex";
             this._videoContainer.style.alignItems = "center";
             this._videoContainer.style.justifyContent = "center";
 
             const innerDiv = document.createElement("div");
+            innerDiv.id = "innerDiv";
             innerDiv.style.position = "absolute";
             innerDiv.style.width = "100%";
             innerDiv.style.height = "100%";
-            innerDiv.style.background = "rgba(111, 111, 111, 0.1)";
+            innerDiv.style.background = "rgba(111, 111, 111, 0.5)";
             innerDiv.style.zIndex = "100";
             innerDiv.style.display = "flex";
             innerDiv.style.justifyContent = "center";
@@ -63,6 +63,7 @@ export class HeadPoseCommandProducer extends CommandProducer {
             this._videoContainer.appendChild(innerDiv);
 
             const innerDivText = document.createElement("div");
+            innerDivText.id =  "innerDivText";
             innerDivText.style.color = "white";
             innerDivText.innerHTML = "WAITING FOR VIDEO";
             innerDiv.appendChild(innerDivText);
@@ -103,6 +104,9 @@ export class HeadPoseCommandProducer extends CommandProducer {
                 Tools.ToDegrees(this._restingPosition.pitch),
                 Tools.ToDegrees(this._restingPosition.yaw)
             );
+            const overlay = this._videoContainer.children[0] as HTMLElement;
+            console.log('overlay', overlay);
+            overlay.style.visibility = "hidden";
         }
         return this._restingPosition.calculated;
     }
@@ -129,7 +133,7 @@ export class HeadPoseCommandProducer extends CommandProducer {
     }
 
     _runDetection = () => {
-        // console.log("start detect");
+        console.log("start detect");
         // Resting position hasn't been calculated, calculate it with a shorter interval
         if (this._restingPosition.calculated) {
             this._runningId = window.setTimeout(this._runDetection, 100);
@@ -173,6 +177,8 @@ export class HeadPoseCommandProducer extends CommandProducer {
         navigator.mediaDevices
             .getUserMedia({ video: true, audio: false })
             .then((stream) => {
+                const text = this._videoContainer.children[0].children[0];
+                text.innerHTML = "INITIALIZING DETECTION";
                 this._video.srcObject = stream;
                 this._stream = stream.getVideoTracks()[0];
                 this._video.play();
