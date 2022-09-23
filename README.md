@@ -31,6 +31,3 @@ export const modelKey = "<your api key here>"
 ```
 
 Project quick-started from [Raanan's amazing starter](https://github.com/RaananW/babylonjs-webpack-es6)
-Model credits:
-* Footsteps from https://www.fesliyanstudios.com/royalty-free-sound-effects-download/footsteps-on-grass-284
-* Bird from https://www.turbosquid.com/3d-models/eagle-rigged-fbx-free/1045001#

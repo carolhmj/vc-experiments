@@ -9,6 +9,7 @@ import { CreateSceneClass } from "../createScene";
 import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
 import {HemisphericLight} from "@babylonjs/core";
 import { CubeTexture } from "@babylonjs/core/Materials/Textures/cubeTexture";
+import {PBRMaterial} from "@babylonjs/core";
 
 // If you don't need the standard material you will still need to import it since the scene requires it.
 // import "@babylonjs/core/Materials/standardMaterial";
@@ -16,7 +17,6 @@ import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 
 import grassTextureUrl from "../../assets/grass.jpg";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
-import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 
 import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
 
@@ -28,17 +28,11 @@ import { HeadPoseCommandProducer } from "../commandController/HeadPoseCommandPro
 import {MeshBuilder} from "@babylonjs/core";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import {DefaultRenderingPipeline} from "@babylonjs/core";
-import { Mesh } from "@babylonjs/core/Meshes/mesh";
-import {Sound} from "@babylonjs/core";
 
 import skyboxTex from "../../assets/environment/forest.env";
-import grassOpac from "../../assets/Dot.png";
-import grassn from "../../assets/grassn.png";
-import eagle from "../../assets/glb/Eagle.glb";
-import footsteps from "../../assets/footsteps.mp3";
+import boxUrl from "../../assets/glb/BoomBox.glb";
 
 import "@babylonjs/loaders/glTF";
-import { SoundCommandProcessor } from "../commandController/soundCommandProcessor";
 
 export class DefaultSceneWithTexture implements CreateSceneClass {
     createScene = async (
@@ -53,26 +47,30 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
             import("@babylonjs/inspector"),
         ]).then((_values) => {
             console.log(_values);
-            scene.debugLayer.show({
-                handleResize: true,
-                overlay: true,
-                globalRoot: document.getElementById("#root") || undefined,
-            });
+            // scene.debugLayer.show({
+            //     handleResize: true,
+            //     overlay: true,
+            //     globalRoot: document.getElementById("#root") || undefined,
+            // });
         });
 
         // This creates and positions a free camera (non-mesh)
-        const camera = new UniversalCamera("camera", new Vector3(0, 1.5, 0));
-        const camera2 = new ArcRotateCamera(
-            "spy",
-            0,
-            Math.PI / 3,
-            10,
+        // const camera = new UniversalCamera("camera", new Vector3(0, 1.5, 0));
+        const camera = new ArcRotateCamera(
+            "c",
+            2.2,
+            1.0,
+            5,
             new Vector3(0, 0, 0),
             scene
         );
+        camera.upperBetaLimit = 1.5;
+        camera.upperRadiusLimit = 8;
+        camera.lowerRadiusLimit = 3;
+        camera.wheelDeltaPercentage = 10;
 
         // This targets the camera to scene origin
-        camera.setTarget(new Vector3(0, 1.5, 1));
+        camera.setTarget(new Vector3(0, 0, 0));
 
         // This attaches the camera to the canvas
         camera.attachControl(canvas, true);
@@ -87,26 +85,6 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         // Default intensity is 1. Let's dim the light a small amount
         hemisphericLight.intensity = 0.7;
 
-        // Our built-in 'ground' shape.
-        const ground = CreateGround(
-            "ground",
-            { width: 100, height: 100 },
-            scene
-        );
-
-        // Load a texture to be used as the ground material
-        const groundMaterial = new StandardMaterial("ground material", scene);
-        groundMaterial.diffuseTexture = new Texture(grassTextureUrl, scene);
-        (groundMaterial.diffuseTexture as Texture).uScale = 10;
-        (groundMaterial.diffuseTexture as Texture).vScale = 10;
-        groundMaterial.bumpTexture = new Texture(grassn, scene);
-        (groundMaterial.bumpTexture as Texture).uScale = 10;
-        (groundMaterial.bumpTexture as Texture).vScale = 10;
-        groundMaterial.opacityTexture = new Texture(grassOpac, scene);
-
-        ground.material = groundMaterial;
-        ground.receiveShadows = true;
-
         const light = new DirectionalLight(
             "light-dir",
             new Vector3(-1, -1, 5),
@@ -115,79 +93,40 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         light.intensity = 0.5;
         light.position.y = 10;
 
-        const shadowGenerator = new ShadowGenerator(512, light)
-        shadowGenerator.useBlurExponentialShadowMap = true;
-        shadowGenerator.blurScale = 2;
-        shadowGenerator.setDarkness(0);
+        const ground = MeshBuilder.CreateGround("ground", {width:10,height:10});
+        const groundMaterial = new PBRMaterial("ground material", scene);
+        groundMaterial.metallic = 0.0;
+        groundMaterial.roughness = 1.0;
+        groundMaterial.albedoTexture = new Texture(grassTextureUrl, scene);
+        (groundMaterial.albedoTexture as Texture).uScale = 5;
+        (groundMaterial.albedoTexture as Texture).vScale = 5;
+        ground.material = groundMaterial;
 
         const skyBoxTexture = CubeTexture.CreateFromPrefilteredData(skyboxTex, scene);
-
-        const skybox = MeshBuilder.CreateBox("skyBox", { size: 100.0 }, scene);
-        const skyboxMaterial = new StandardMaterial("skyBox", scene);
-        skyboxMaterial.backFaceCulling = false;
-        skyboxMaterial.reflectionTexture = skyBoxTexture;
-        skyboxMaterial.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
-        skyboxMaterial.diffuseColor = new Color3(0, 0, 0);
-        skyboxMaterial.specularColor = new Color3(0, 0, 0);
-        skybox.material = skyboxMaterial;
 
         const rp = new DefaultRenderingPipeline();
         rp.samples = 4;
         rp.bloomEnabled = true;
 
-        const eaglesResult = await SceneLoader.ImportMeshAsync("", "", eagle);
+        const bb = await SceneLoader.ImportMeshAsync("", "", boxUrl);
+        bb.meshes[0].normalizeToUnitCube();
+        bb.meshes[0].position.y = 0.5;
 
-        const eaglesAnims = eaglesResult.animationGroups;
+        const envHelper = scene.createDefaultEnvironment({
+            skyboxTexture: skyBoxTexture,
+            environmentTexture: skyBoxTexture,
+            createGround: false,
+            skyboxSize: 10,
+        });
+        envHelper!.skyboxMaterial!.primaryColor = new Color3(1,1,1);
+       
+        // const vc = new OnlineVoiceControlCommandProducer();
+        const vc = new HeadPoseCommandProducer();
         
-        const eagleRoot = eaglesResult.meshes[0];
-        const eagleBase = eaglesResult.meshes[1] as Mesh;
-
-        const eagleMat = new StandardMaterial("eagleMat");
-        eagleMat.diffuseColor = Color3.FromHexString("#5A3D00");
-        eagleMat.specularColor = Color3.Black();
-        eagleBase.material = eagleMat;
-        
-        const nEagles = 100;
-        
-        // range -rng rng
-        function randomFullRange(rng: number) {
-            return (Math.random()-0.5)*2.0*rng;
-        }
-
-        // range 0 rng
-        function randomZeroRange(rng:number) {
-            return Math.random()*rng;
-        }
-        
-        for (let i = 0; i < nEagles; i++) {
-            const eagleInst = eagleRoot.clone("e"+i, null);
-            eagleInst!.scaling = new Vector3(0.1, 0.1, 0.1);
-            eagleInst!.position = new Vector3(randomFullRange(40), 3-randomFullRange(1.5), 20 + randomZeroRange(10));
-            (eagleInst as any)!.speed = Math.random()*0.02+0.01;
-            (eagleInst as any)!.maxPos = 10 + randomZeroRange(10);
-            scene.onBeforeRenderObservable.add(() => {
-                eagleInst!.position.z -= (eagleInst as any)!.speed;
-                if (eagleInst!.position.z < -(eagleInst as any)!.maxPos) {
-                    eagleInst!.position.z = (eagleInst as any)!.maxPos;
-                } 
-            });
-        }
-        
-        eagleRoot.isVisible = false;
-        eagleBase.isVisible = false;
-        eaglesAnims[0].stop();
-        eaglesAnims[1].start(true);
-
-        const vc = new OnlineVoiceControlCommandProducer();
-        
-        const cameraProcessor = new UniversalCameraCommandProcessor(camera);
-
-        const stepSound = new Sound("footsteps", footsteps);
-        const soundProc = new SoundCommandProcessor();
-        soundProc.linkCommandToSound(stepSound, "move", undefined, undefined, 1);
+        // const cameraProcessor = new UniversalCameraCommandProcessor(camera);
+        const cameraProcessor = new ArcRotateCameraCommandProcessor(camera);
 
         vc.addProcessor(cameraProcessor);
-        vc.addProcessor(soundProc);
         
         let listening = false;
         let lastStateToggle = Date.now();

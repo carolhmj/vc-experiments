@@ -15,7 +15,7 @@ export class HeadPoseCommandProducer extends CommandProducer {
         numSamples: number;
         calculated: boolean;
     };
-    private _numRestingSamples = 15; //minimum samples needed to get the average
+    private _numRestingSamples = 3; //minimum samples needed to get the average
     private _timingIntervals = 700; // Interval in ms between sending two batches of transformation
     private _verticalAngleDiff = Tools.ToRadians(20);
     private _horizontalAngleDiff = Tools.ToRadians(20);
@@ -194,6 +194,9 @@ export class HeadPoseCommandProducer extends CommandProducer {
         this._stream?.stop();
         if (this._runningId) {
             console.log("stop detection");
+            const overlay = this._videoContainer.children[0] as HTMLElement;
+            console.log('overlay', overlay);
+            overlay.style.visibility = "visible";
             // cancelAnimationFrame(this._runningId);
             clearTimeout(this._runningId);
         }
