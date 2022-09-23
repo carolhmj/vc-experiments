@@ -8,5 +8,8 @@ declare module '*.dds';
 declare module '*.glb';
 declare module '*.stl';
 
+// sound
+declare module '*.mp3';
+
 // Physics
 declare module "ammo.js";

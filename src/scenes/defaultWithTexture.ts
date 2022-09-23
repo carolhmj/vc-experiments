@@ -3,7 +3,6 @@ import { Scene } from "@babylonjs/core/scene";
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import {UniversalCamera} from "@babylonjs/core/Cameras/universalCamera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder";
 import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { CreateSceneClass } from "../createScene";
@@ -29,14 +28,17 @@ import { HeadPoseCommandProducer } from "../commandController/HeadPoseCommandPro
 import {MeshBuilder} from "@babylonjs/core";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import {DefaultRenderingPipeline} from "@babylonjs/core";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import {Sound} from "@babylonjs/core";
 
-import amy from "../../assets/glb/amy-anim.glb";
 import skyboxTex from "../../assets/environment/forest.env";
 import grassOpac from "../../assets/Dot.png";
 import grassn from "../../assets/grassn.png";
+import eagle from "../../assets/glb/Eagle.glb";
+import footsteps from "../../assets/footsteps.mp3";
 
 import "@babylonjs/loaders/glTF";
-import { AnimationGroupCommandProcessor } from "../commandController/animationGroupCommandProcessor";
+import { SoundCommandProcessor } from "../commandController/soundCommandProcessor";
 
 export class DefaultSceneWithTexture implements CreateSceneClass {
     createScene = async (
@@ -85,26 +87,6 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         // Default intensity is 1. Let's dim the light a small amount
         hemisphericLight.intensity = 0.7;
 
-        const amyImport = await SceneLoader.ImportMeshAsync("", "", amy);
-        console.log(amyImport);
-        
-
-        const animationGroups = amyImport.animationGroups;
-        const forwardAnim = animationGroups.filter((g) => g.name === "WalkForwards")[0];
-        const backAnim = animationGroups.filter((g) => g.name === "WalkBackwards")[0];
-        const lookArnd = animationGroups.filter((g) => g.name === "LookAround")[0];
-        lookArnd.speedRatio = 4.5;
-
-        const amyRootMesh = amyImport.meshes[0];
-        amyRootMesh.parent = camera;
-        amyRootMesh.position.x = 0.2;
-        amyRootMesh.position.y = -1.5;
-        amyRootMesh.position.z = 1.5;
-
-        const amyMesh = amyImport.meshes[1];
-
-        camera.minZ = 0.001;
-
         // Our built-in 'ground' shape.
         const ground = CreateGround(
             "ground",
@@ -138,8 +120,6 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         shadowGenerator.blurScale = 2;
         shadowGenerator.setDarkness(0);
 
-        shadowGenerator.getShadowMap()!.renderList!.push(amyMesh);
-
         const skyBoxTexture = CubeTexture.CreateFromPrefilteredData(skyboxTex, scene);
 
         const skybox = MeshBuilder.CreateBox("skyBox", { size: 100.0 }, scene);
@@ -155,17 +135,59 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         rp.samples = 4;
         rp.bloomEnabled = true;
 
+        const eaglesResult = await SceneLoader.ImportMeshAsync("", "", eagle);
+
+        const eaglesAnims = eaglesResult.animationGroups;
+        
+        const eagleRoot = eaglesResult.meshes[0];
+        const eagleBase = eaglesResult.meshes[1] as Mesh;
+
+        const eagleMat = new StandardMaterial("eagleMat");
+        eagleMat.diffuseColor = Color3.FromHexString("#5A3D00");
+        eagleMat.specularColor = Color3.Black();
+        eagleBase.material = eagleMat;
+        
+        const nEagles = 100;
+        
+        // range -rng rng
+        function randomFullRange(rng: number) {
+            return (Math.random()-0.5)*2.0*rng;
+        }
+
+        // range 0 rng
+        function randomZeroRange(rng:number) {
+            return Math.random()*rng;
+        }
+        
+        for (let i = 0; i < nEagles; i++) {
+            const eagleInst = eagleRoot.clone("e"+i, null);
+            eagleInst!.scaling = new Vector3(0.1, 0.1, 0.1);
+            eagleInst!.position = new Vector3(randomFullRange(40), 3-randomFullRange(1.5), 20 + randomZeroRange(10));
+            (eagleInst as any)!.speed = Math.random()*0.02+0.01;
+            (eagleInst as any)!.maxPos = 10 + randomZeroRange(10);
+            scene.onBeforeRenderObservable.add(() => {
+                eagleInst!.position.z -= (eagleInst as any)!.speed;
+                if (eagleInst!.position.z < -(eagleInst as any)!.maxPos) {
+                    eagleInst!.position.z = (eagleInst as any)!.maxPos;
+                } 
+            });
+        }
+        
+        eagleRoot.isVisible = false;
+        eagleBase.isVisible = false;
+        eaglesAnims[0].stop();
+        eaglesAnims[1].start(true);
+
         const vc = new OnlineVoiceControlCommandProducer();
         
         const cameraProcessor = new UniversalCameraCommandProcessor(camera);
 
-        const animProcessor = new AnimationGroupCommandProcessor();
-        animProcessor.linkCommandToAnimation(forwardAnim, "move", ["forward"]);
-        animProcessor.linkCommandToAnimation(backAnim, "move", ["backward"]);
-        animProcessor.linkCommandToAnimation(lookArnd, "look");
+        const stepSound = new Sound("footsteps", footsteps);
+        const soundProc = new SoundCommandProcessor();
+        soundProc.linkCommandToSound(stepSound, "move", undefined, undefined, 1);
 
         vc.addProcessor(cameraProcessor);
-        vc.addProcessor(animProcessor);
+        vc.addProcessor(soundProc);
         
         let listening = false;
         let lastStateToggle = Date.now();
