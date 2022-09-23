@@ -9,6 +9,7 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { CreateSceneClass } from "../createScene";
 import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
 import {HemisphericLight} from "@babylonjs/core";
+import { CubeTexture } from "@babylonjs/core/Materials/Textures/cubeTexture";
 
 // If you don't need the standard material you will still need to import it since the scene requires it.
 // import "@babylonjs/core/Materials/standardMaterial";
@@ -25,8 +26,15 @@ import { OnlineVoiceControlCommandProducer } from "../commandController/OnlineVo
 import { ArcRotateCameraCommandProcessor } from "../commandController/arcRotateCameraCommandProcessor";
 import { UniversalCameraCommandProcessor } from "../commandController/universalCameraCommandProcessor";
 import { HeadPoseCommandProducer } from "../commandController/HeadPoseCommandProducer";
+import {MeshBuilder} from "@babylonjs/core";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import {DefaultRenderingPipeline} from "@babylonjs/core";
 
 import amy from "../../assets/glb/amy-anim.glb";
+import skyboxTex from "../../assets/environment/forest.env";
+import grassOpac from "../../assets/Dot.png";
+import grassn from "../../assets/grassn.png";
+
 import "@babylonjs/loaders/glTF";
 import { AnimationGroupCommandProcessor } from "../commandController/animationGroupCommandProcessor";
 
@@ -51,7 +59,7 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         });
 
         // This creates and positions a free camera (non-mesh)
-        const camera = new UniversalCamera("camera", new Vector3(0, 1, -10));
+        const camera = new UniversalCamera("camera", new Vector3(0, 1.5, 0));
         const camera2 = new ArcRotateCamera(
             "spy",
             0,
@@ -62,65 +70,64 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         );
 
         // This targets the camera to scene origin
-        camera.setTarget(Vector3.Zero());
+        camera.setTarget(new Vector3(0, 1.5, 1));
 
         // This attaches the camera to the canvas
         camera.attachControl(canvas, true);
 
         // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
-        const lighth = new HemisphericLight(
+        const hemisphericLight = new HemisphericLight(
             "light",
             new Vector3(0, 1, 0),
             scene
         );
 
         // Default intensity is 1. Let's dim the light a small amount
-        lighth.intensity = 0.7;
-
-        // Our built-in 'sphere' shape.
-        // const sphere = CreateSphere(
-        //     "sphere",
-        //     { diameter: 2, segments: 32 },
-        //     scene
-        // );
-
-        // // Move the sphere upward 1/2 its height
-        // sphere.position.y = 1;
+        hemisphericLight.intensity = 0.7;
 
         const amyImport = await SceneLoader.ImportMeshAsync("", "", amy);
         console.log(amyImport);
-        // scene.beginAnimation(amyImport.skeletons[0], 0, 100, true);
+        
+
         const animationGroups = amyImport.animationGroups;
         const forwardAnim = animationGroups.filter((g) => g.name === "WalkForwards")[0];
         const backAnim = animationGroups.filter((g) => g.name === "WalkBackwards")[0];
         const lookArnd = animationGroups.filter((g) => g.name === "LookAround")[0];
         lookArnd.speedRatio = 4.5;
 
-        const amyMesh = amyImport.meshes[0];
-        amyMesh.parent = camera;
-        amyMesh.position.x = 0.2;
-        amyMesh.position.y = -1.5;
-        amyMesh.position.z = 1.5;
+        const amyRootMesh = amyImport.meshes[0];
+        amyRootMesh.parent = camera;
+        amyRootMesh.position.x = 0.2;
+        amyRootMesh.position.y = -1.5;
+        amyRootMesh.position.z = 1.5;
+
+        const amyMesh = amyImport.meshes[1];
 
         camera.minZ = 0.001;
 
         // Our built-in 'ground' shape.
         const ground = CreateGround(
             "ground",
-            { width: 6, height: 6 },
+            { width: 100, height: 100 },
             scene
         );
 
         // Load a texture to be used as the ground material
         const groundMaterial = new StandardMaterial("ground material", scene);
         groundMaterial.diffuseTexture = new Texture(grassTextureUrl, scene);
+        (groundMaterial.diffuseTexture as Texture).uScale = 10;
+        (groundMaterial.diffuseTexture as Texture).vScale = 10;
+        groundMaterial.bumpTexture = new Texture(grassn, scene);
+        (groundMaterial.bumpTexture as Texture).uScale = 10;
+        (groundMaterial.bumpTexture as Texture).vScale = 10;
+        groundMaterial.opacityTexture = new Texture(grassOpac, scene);
 
         ground.material = groundMaterial;
         ground.receiveShadows = true;
 
         const light = new DirectionalLight(
-            "light",
-            new Vector3(0, -1, -1),
+            "light-dir",
+            new Vector3(-1, -1, 5),
             scene
         );
         light.intensity = 0.5;
@@ -129,14 +136,27 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         const shadowGenerator = new ShadowGenerator(512, light)
         shadowGenerator.useBlurExponentialShadowMap = true;
         shadowGenerator.blurScale = 2;
-        shadowGenerator.setDarkness(0.2);
+        shadowGenerator.setDarkness(0);
 
-        // shadowGenerator.getShadowMap()!.renderList!.push(sphere);
+        shadowGenerator.getShadowMap()!.renderList!.push(amyMesh);
+
+        const skyBoxTexture = CubeTexture.CreateFromPrefilteredData(skyboxTex, scene);
+
+        const skybox = MeshBuilder.CreateBox("skyBox", { size: 100.0 }, scene);
+        const skyboxMaterial = new StandardMaterial("skyBox", scene);
+        skyboxMaterial.backFaceCulling = false;
+        skyboxMaterial.reflectionTexture = skyBoxTexture;
+        skyboxMaterial.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
+        skyboxMaterial.diffuseColor = new Color3(0, 0, 0);
+        skyboxMaterial.specularColor = new Color3(0, 0, 0);
+        skybox.material = skyboxMaterial;
+
+        const rp = new DefaultRenderingPipeline();
+        rp.samples = 4;
+        rp.bloomEnabled = true;
 
         const vc = new OnlineVoiceControlCommandProducer();
-        // const vc = new HeadPoseCommandProducer();
         
-        // const cameraProcessor = new ArcRotateCameraCommandProcessor(camera);
         const cameraProcessor = new UniversalCameraCommandProcessor(camera);
 
         const animProcessor = new AnimationGroupCommandProcessor();
